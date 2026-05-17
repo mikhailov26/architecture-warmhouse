@@ -1,0 +1,325 @@
+asyncapi: '3.0.0'
+info:
+  title: WarmHouse System API
+  version: '1.0.0'
+  description: |
+    API для асинхронного взаимодействия микросервисов системы "Умный дом" WarmHouse.
+    Обеспечивает обмен сообщениями между сервисами пользователей, устройств,
+    платежей и внешними API управляемых модулей через NATS.
+defaultContentType: application/json
+servers:
+  natsServer:
+    host: warmhouse.com:18092
+    protocol: nats
+    description: Сервер NATS для асинхронного обмена сообщениями между сервисами.
+channels:
+  user.{user_id}.commands:
+    address: 'user.{user_id}.commands'
+    messages:
+      UserCommand:
+        $ref: '#/components/messages/UserCommand'
+    description: |
+      Канал для команд пользователя.
+      `{user_id}` — идентификатор пользователя.
+
+  device.{device_id}.telemetry:
+    address: 'device.{device_id}.telemetry'
+    messages:
+      DeviceTelemetry:
+        $ref: '#/components/messages/DeviceTelemetry'
+    description: |
+      Канал для телеметрии с устройств.
+      `{device_id}` — идентификатор умного устройства (датчика/модуля).
+
+  device.{device_id}.commands:
+    address: 'device.{device_id}.commands'
+    messages:
+      DeviceCommand:
+        $ref: '#/components/messages/DeviceCommand'
+    description: |
+      Канал для отправки команд на устройства.
+      `{device_id}` — идентификатор умного устройства.
+
+  payment.{user_id}.status:
+    address: 'payment.{user_id}.status'
+    messages:
+      PaymentStatus:
+        $ref: '#/components/messages/PaymentStatus'
+    description: |
+      Канал для статусов платежей.
+      `{user_id}` — идентификатор пользователя.
+
+  database.{table}.changes:
+    address: 'database.{table}.changes'
+    messages:
+      DatabaseChange:
+        $ref: '#/components/messages/DatabaseChange'
+    description: |
+      Канал для уведомлений об изменениях в базе данных.
+      `{table}` — имя таблицы (users, devices, payments и т.д.).
+
+operations:
+  # Пользовательский сервис
+  sendUserCommand:
+    action: send
+    channel:
+      $ref: '#/channels/user.{user_id}.commands'
+    summary: Отправка команды пользователя
+    description: Пользовательский сервис отправляет команды от пользователя
+
+  receiveUserCommand:
+    action: receive
+    channel:
+      $ref: '#/channels/user.{user_id}.commands'
+    summary: Получение команды пользователя
+    description: Сервис регистрации пользователя получает команды
+
+  # Сервис управления устройствами
+  publishDeviceTelemetry:
+    action: send
+    channel:
+      $ref: '#/channels/device.{device_id}.telemetry'
+    summary: Публикация телеметрии устройства
+    description: Сервис управления устройствами публикует телеметрию с датчиков
+
+  receiveDeviceTelemetry:
+    action: receive
+    channel:
+      $ref: '#/channels/device.{device_id}.telemetry'
+    summary: Получение телеметрии
+    description: Пользовательский сервис получает телеметрию для отображения
+
+  sendDeviceCommand:
+    action: send
+    channel:
+      $ref: '#/channels/device.{device_id}.commands'
+    summary: Отправка команды на устройство
+    description: Сервис управления устройствами отправляет команды на API модулей
+
+  receiveDeviceCommand:
+    action: receive
+    channel:
+      $ref: '#/channels/device.{device_id}.commands'
+    summary: Получение команды устройством
+    description: API управляемых модулей получают команды
+
+  # Платежный сервис
+  publishPaymentStatus:
+    action: send
+    channel:
+      $ref: '#/channels/payment.{user_id}.status'
+    summary: Публикация статуса платежа
+    description: Сервис обработки платежей публикует статус оплаты
+
+  receivePaymentStatus:
+    action: receive
+    channel:
+      $ref: '#/channels/payment.{user_id}.status'
+    summary: Получение статуса платежа
+    description: Пользовательский сервис получает статус платежа
+
+  # CRUD сервис
+  publishDatabaseChange:
+    action: send
+    channel:
+      $ref: '#/channels/database.{table}.changes'
+    summary: Уведомление об изменении в БД
+    description: CRUD сервис публикует уведомления об изменениях в базе данных
+
+  receiveDatabaseChange:
+    action: receive
+    channel:
+      $ref: '#/channels/database.{table}.changes'
+    summary: Получение уведомления об изменении
+    description: Сервисы подписываются на изменения в БД
+
+components:
+  messages:
+    UserCommand:
+      name: UserCommand
+      title: Команда пользователя
+      summary: Команда от пользователя (просмотр показателей, настройка поведения)
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UserCommandPayload'
+
+    DeviceTelemetry:
+      name: DeviceTelemetry
+      title: Телеметрия устройства
+      summary: Показатели с датчиков умных устройств
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeviceTelemetryPayload'
+
+    DeviceCommand:
+      name: DeviceCommand
+      title: Команда устройству
+      summary: Команда для управления устройством
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeviceCommandPayload'
+
+    PaymentStatus:
+      name: PaymentStatus
+      title: Статус платежа
+      summary: Информация о статусе обработки платежа
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PaymentStatusPayload'
+
+    DatabaseChange:
+      name: DatabaseChange
+      title: Изменение в БД
+      summary: Уведомление об изменении данных в базе данных
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DatabaseChangePayload'
+
+  schemas:
+    UserCommandPayload:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Идентификатор пользователя
+        command_type:
+          type: string
+          enum: [view_telemetry, configure_device, get_devices, set_schedule]
+          description: Тип команды
+        payload:
+          type: object
+          description: Данные команды
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Время отправки команды
+
+    DeviceTelemetryPayload:
+      type: object
+      properties:
+        device_id:
+          type: string
+          description: Идентификатор устройства
+        device_type:
+          type: string
+          description: Тип устройства (температура, влажность, движение и т.д.)
+        value:
+          type: number
+          description: Значение датчика
+        unit:
+          type: string
+          description: Единица измерения
+        timestamp:
+          type: string
+          format: date-time
+          description: Время измерения
+        metadata:
+          type: object
+          additionalProperties: true
+
+    DeviceCommandPayload:
+      type: object
+      properties:
+        device_id:
+          type: string
+          description: Идентификатор целевого устройства
+        command:
+          type: string
+          enum: [set_temperature, turn_on, turn_off, set_mode, reboot]
+          description: Команда для выполнения
+        parameters:
+          type: object
+          description: Параметры команды
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Время отправки команды
+
+    PaymentStatusPayload:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Идентификатор пользователя
+        payment_id:
+          type: string
+          description: Идентификатор платежа
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+          description: Статус платежа
+        amount:
+          type: number
+          description: Сумма платежа
+        currency:
+          type: string
+          description: Валюта
+        timestamp:
+          type: string
+          format: date-time
+          description: Время обновления статуса
+
+    DatabaseChangePayload:
+      type: object
+      properties:
+        table:
+          type: string
+          description: Имя измененной таблицы
+        operation:
+          type: string
+          enum: [INSERT, UPDATE, DELETE]
+          description: Тип операции
+        record_id:
+          type: string
+          description: Идентификатор измененной записи
+        before:
+          type: object
+          description: Состояние до изменения (для UPDATE/DELETE)
+        after:
+          type: object
+          description: Состояние после изменения (для INSERT/UPDATE)
+        timestamp:
+          type: string
+          format: date-time
+          description: Время изменения
+
+x-services:
+  UserService:
+    description: Пользовательский сервис. Позволяет клиенту смотреть показатели датчиков и настраивать поведение через приложение.
+    operations:
+      - $ref: '#/operations/sendUserCommand'
+      - $ref: '#/operations/receiveDeviceTelemetry'
+      - $ref: '#/operations/receivePaymentStatus'
+
+  RegistrationService:
+    description: Сервис регистрации пользователя. Обрабатывает команды пользователя и взаимодействует с CRUD сервисом.
+    operations:
+      - $ref: '#/operations/receiveUserCommand'
+
+  CrudService:
+    description: Сервис для работы с базой данных. Выполняет CRUD операции и уведомляет об изменениях.
+    operations:
+      - $ref: '#/operations/publishDatabaseChange'
+
+  PaymentService:
+    description: Сервис обработки платежей. Обрабатывает оплату и публикует статусы платежей.
+    operations:
+      - $ref: '#/operations/publishPaymentStatus'
+
+  SensorService:
+    description: Сервис управления устройствами. Запрашивает/отправляет данные через API управляемых модулей.
+    operations:
+      - $ref: '#/operations/publishDeviceTelemetry'
+      - $ref: '#/operations/sendDeviceCommand'
+
+  ExternalModulesAPI:
+    description: API управляемых модулей. Внешняя система для взаимодействия с умными устройствами.
+    operations:
+      - $ref: '#/operations/receiveDeviceCommand'
+
+  Database:
+    description: База данных PostgreSQL. Хранит данные приложения.
+    operations:
+      - $ref: '#/operations/receiveDatabaseChange'

@@ -1,0 +1,32 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+Person(user, "Клиент компании", "Пользователь")
+System(WarmHouseSystem, "WarmHouse система")
+
+Container_Boundary(WarmHouseSystem, "WarmHouse система") {
+  Container(user_service, "Пользовательский сервис", "")
+  Container(reg_service, "Сервис Регистрации пользователя", "")
+  Container(crud, "Сервис для работы с бд", "")
+  Container(pay_service, "Сервис обработки платежей", "")
+  Container(sens_service, "Сервис управления устройствами", "")
+  ContainerDb(db, "База данных", "PostgreSQL", "Хранит данные приложения")
+}
+
+System_Ext(api_modules, "API управляемых модулей")
+
+Rel(user, user_service, "Смотрит через приложение показатели датчиков. Настраивает поведение")
+BiRel(crud, db, "")
+BiRel(user_service, reg_service, "")
+BiRel(user_service, crud, "")
+BiRel(reg_service, crud, "")
+BiRel(crud, db, "")
+
+Rel(user_service, pay_service, "")
+Rel(pay_service, crud, "")
+
+Rel(user_service, sens_service, "")
+BiRel(sens_service, crud, "")
+BiRel(sens_service, api_modules, "Запрашивает/отправляет данные")
+
+@enduml
