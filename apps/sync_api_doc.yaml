@@ -1,0 +1,592 @@
+openapi: 3.0.0
+info:
+  title: WarmHouse System API
+  version: '1.0.0'
+  description: |
+    Синхронное REST API для системы "Умный дом" WarmHouse.
+    Обеспечивает взаимодействие между сервисами пользователей, устройств,
+    платежей и внешними API управляемых модулей через HTTP.
+servers:
+  - url: https://api.warmhouse.com/v1
+    description: Production сервер
+  - url: https://sandbox.warmhouse.com/v1
+    description: Sandbox сервер для тестирования
+
+tags:
+  - name: User Service
+    description: Пользовательский сервис. Клиент смотрит показатели датчиков и настраивает поведение через приложение.
+  - name: Registration Service
+    description: Сервис регистрации пользователя. Обрабатывает команды пользователя.
+  - name: Device Service
+    description: Сервис управления устройствами. Управляет датчиками и модулями.
+  - name: Payment Service
+    description: Сервис обработки платежей.
+  - name: CRUD Service
+    description: Сервис для работы с базой данных.
+
+paths:
+  /users/{user_id}/telemetry:
+    get:
+      tags:
+        - User Service
+      summary: Просмотр телеметрии
+      description: Получение показателей с датчиков для пользователя
+      operationId: getTelemetry
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор пользователя
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по конкретному устройству
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Начало периода
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Конец периода
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceTelemetry'
+        '404':
+          description: Пользователь или устройство не найдены
+
+  /users/{user_id}/devices:
+    get:
+      tags:
+        - User Service
+      summary: Получить список устройств пользователя
+      operationId: getUserDevices
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список устройств
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        '404':
+          description: Пользователь не найден
+
+  /users/{user_id}/devices/{device_id}/schedule:
+    put:
+      tags:
+        - User Service
+      summary: Настройка расписания для устройства
+      operationId: setSchedule
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleConfig'
+      responses:
+        '200':
+          description: Расписание сохранено
+        '400':
+          description: Неверные параметры
+
+  /auth/register:
+    post:
+      tags:
+        - Registration Service
+      summary: Регистрация нового пользователя
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          description: Пользователь уже существует
+
+  /auth/login:
+    post:
+      tags:
+        - Registration Service
+      summary: Аутентификация пользователя
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /devices/{device_id}/telemetry:
+    get:
+      tags:
+        - Device Service
+      summary: Получить последнюю телеметрию устройства
+      operationId: getDeviceTelemetry
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Текущие показатели
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTelemetry'
+        '404':
+          description: Устройство не найдено
+    post:
+      tags:
+        - Device Service
+      summary: Отправить телеметрию от устройства (вызывается внешними модулями)
+      operationId: publishTelemetry
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTelemetry'
+      responses:
+        '202':
+          description: Телеметрия принята в обработку
+
+  /devices/{device_id}/command:
+    post:
+      tags:
+        - Device Service
+      summary: Отправить команду на устройство
+      operationId: sendCommandToDevice
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCommand'
+      responses:
+        '200':
+          description: Команда выполнена успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  result:
+                    type: object
+        '400':
+          description: Неверная команда или параметры
+        '404':
+          description: Устройство не найдено или недоступно
+
+  /devices:
+    get:
+      tags:
+        - Device Service
+      summary: Получить все устройства
+      operationId: getAllDevices
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Фильтр по типу устройства
+        - name: user_id
+          in: query
+          schema:
+            type: string
+          description: Фильтр по владельцу
+      responses:
+        '200':
+          description: Список устройств
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+
+  /payments:
+    post:
+      tags:
+        - Payment Service
+      summary: Создать платеж
+      operationId: createPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                amount:
+                  type: number
+                currency:
+                  type: string
+                payment_method:
+                  type: string
+      responses:
+        '201':
+          description: Платеж создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+
+  /payments/{payment_id}/status:
+    get:
+      tags:
+        - Payment Service
+      summary: Получить статус платежа
+      operationId: getPaymentStatus
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Текущий статус платежа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '404':
+          description: Платеж не найден
+
+  /users/{user_id}/payments:
+    get:
+      tags:
+        - Payment Service
+      summary: Получить историю платежей пользователя
+      operationId: getUserPayments
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список платежей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentStatus'
+
+  /crud/{table}:
+    get:
+      tags:
+        - CRUD Service
+      summary: Получить записи из таблицы
+      operationId: crudGet
+      parameters:
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [users, devices, payments]
+        - name: id
+          in: query
+          schema:
+            type: string
+          description: ID конкретной записи
+      responses:
+        '200':
+          description: Данные получены
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+    post:
+      tags:
+        - CRUD Service
+      summary: Создать запись
+      operationId: crudCreate
+      parameters:
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+    put:
+      tags:
+        - CRUD Service
+      summary: Обновить запись
+      operationId: crudUpdate
+      parameters:
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Запись обновлена
+
+    delete:
+      tags:
+        - CRUD Service
+      summary: Удалить запись
+      operationId: crudDelete
+      parameters:
+        - name: table
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Запись удалена
+
+  /webhooks/database-changes:
+    post:
+      tags:
+        - CRUD Service
+      summary: Webhook для получения уведомлений об изменениях БД (для внешних подписчиков)
+      operationId: databaseChangeWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatabaseChange'
+      responses:
+        '200':
+          description: Уведомление получено
+
+components:
+  schemas:
+    DeviceTelemetry:
+      type: object
+      properties:
+        device_id:
+          type: string
+        device_type:
+          type: string
+          description: температура, влажность, движение и т.д.
+        value:
+          type: number
+        unit:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    DeviceCommand:
+      type: object
+      properties:
+        device_id:
+          type: string
+        command:
+          type: string
+          enum: [set_temperature, turn_on, turn_off, set_mode, reboot]
+        parameters:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, error]
+
+    PaymentStatus:
+      type: object
+      properties:
+        user_id:
+          type: string
+        payment_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        amount:
+          type: number
+        currency:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    DatabaseChange:
+      type: object
+      properties:
+        table:
+          type: string
+        operation:
+          type: string
+          enum: [INSERT, UPDATE, DELETE]
+        record_id:
+          type: string
+        before:
+          type: object
+        after:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UserRegistration:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        name:
+          type: string
+
+    ScheduleConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        cron:
+          type: string
+          description: Расписание в формате cron
+        actions:
+          type: array
+          items:
+            type: object

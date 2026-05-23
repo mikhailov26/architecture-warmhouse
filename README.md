@@ -116,7 +116,11 @@
 ### 2. Документация API
 
 ```markdown
-[Пример работы](apps/api_doc.yaml)
+[Пример работы_синхронное API](apps/sync_api_doc.yaml)
+```
+
+```markdown
+[Пример работы_асинхронное_API](apps/sync_api_doc.yaml)
 ```
 
 # Задание 5. Работа с docker и docker-compose

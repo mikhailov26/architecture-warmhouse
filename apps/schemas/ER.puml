@@ -31,6 +31,7 @@ entity "user" as user {
   primary_key(user_id) : integer <<generated>>
   --
   *username : varchar(50)
+  *email : varchar(100)
   *isAdmin : boolean
   password_hash : varchar(255)
   created_at : timestamp
@@ -41,11 +42,22 @@ entity "user" as user {
 entity "house" as house {
   primary_key(house_id) : integer <<generated>>
   --
-  foreign_key(user_id) : integer <<FK>>
   *housename : varchar(50)
+  *address : text
   created_at : timestamp
   ..
   <i>Дома пользователей</i>
+}
+
+entity "user_house" as user_house {
+  primary_key(user_house_id) : integer <<generated>>
+  --
+  foreign_key(user_id) : integer <<FK>>
+  foreign_key(house_id) : integer <<FK>>
+  *role : varchar(50)
+  joined_at : timestamp
+  ..
+  <i>Связь пользователей с домами (роли доступа)</i>
 }
 
 entity "device" as device {
@@ -88,13 +100,15 @@ entity "sensorTelemetry" as sensorTelemetry {
   <i>Телеметрия датчиков</i>
 }
 
-user ||--o{ house : "владеет"
+user ||--o{ user_house : "имеет доступ"
+user_house }o--|| house : "относится к"
+
 house ||--o{ device : "содержит"
 device ||--o{ sensor : "содержит"
 sensor ||--o{ sensorTelemetry : "публикует"
+
 device }o--|| DeviceType : "имеет"
 sensor }o--|| SensorType : "имеет"
 sensorTelemetry }o--|| UnitType : "имеет"
-
 
 @enduml
