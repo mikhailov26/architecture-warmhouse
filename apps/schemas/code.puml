@@ -1,0 +1,131 @@
+@startuml
+
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+    class DatabaseService {
+        + getUserById(id: UUID): User
+        + getUserByEmail(email: String): User
+        + saveUser(user: User): void
+        + updateUser(user: User): void
+        + deleteUser(id: UUID): void
+
+        + getDeviceById(id: UUID): Device
+        + getAllDevices(): List<Device>
+        + getDevicesByUserId(userId: UUID): List<Device>
+        + saveDevice(device: Device): void
+        + updateDevice(device: Device): void
+        + deleteDevice(id: UUID): void
+
+        + getPaymentById(id: UUID): Payment
+        + getPaymentsByUserId(userId: UUID): List<Payment>
+        + savePayment(payment: Payment): void
+        + updatePaymentStatus(id: UUID, status: String): void
+
+        + getSubscriptionByUserId(userId: UUID): Subscription
+        + saveSubscription(subscription: Subscription): void
+        + updateSubscription(subscription: Subscription): void
+        + cancelSubscription(userId: UUID): void
+
+        + getSensorDataByDeviceId(deviceId: UUID, fromDate: Date): List<SensorData>
+        + saveSensorData(data: SensorData): void
+
+        - validateId(id: UUID): boolean
+        - validateEntity(entity: Object): boolean
+        - executeQuery(sql: String): ResultSet
+        - logError(error: Exception): void
+    }
+
+    class User {
+        - id: UUID
+        - name: String
+        - email: String
+        - passwordHash: String
+        - createdAt: Date
+        - updatedAt: Date
+        - isActive: boolean
+        + getName(): String
+        + getEmail(): String
+        + getCreatedAt(): Date
+        + isActive(): boolean
+    }
+
+    class Device {
+        - id: UUID
+        - userId: UUID
+        - name: String
+        - type: String
+        - status: String
+        - location: String
+        - createdAt: Date
+        - updatedAt: Date
+        + getStatus(): String
+        + setStatus(status: String): void
+        + getLocation(): String
+    }
+
+    class Payment {
+        - id: UUID
+        - userId: UUID
+        - amount: Double
+        - currency: String
+        - status: String
+        - paymentMethod: String
+        - transactionId: String
+        - createdAt: Date
+        - updatedAt: Date
+        + getAmount(): Double
+        + getStatus(): String
+        + getTransactionId(): String
+    }
+
+    class Subscription {
+        - id: UUID
+        - userId: UUID
+        - plan: String
+        - status: String
+        - startDate: Date
+        - endDate: Date
+        - autoRenew: boolean
+        - price: Double
+        + getPlan(): String
+        + isActive(): boolean
+        + getEndDate(): Date
+    }
+
+    class SensorData {
+        - id: UUID
+        - deviceId: UUID
+        - temperature: Double
+        - humidity: Double
+        - pressure: Double
+        - batteryLevel: Double
+        - timestamp: Date
+        + getTemperature(): Double
+        + getHumidity(): Double
+        + getTimestamp(): Date
+    }
+
+    class ConnectionPool {
+        - connections: List<Connection>
+        + getConnection(): Connection
+        + releaseConnection(conn: Connection): void
+        + closeAll(): void
+    }
+
+    class QueryBuilder {
+        + buildSelect(table: String, fields: List<String>, where: String): String
+        + buildInsert(table: String, data: Map): String
+        + buildUpdate(table: String, data: Map, where: String): String
+        + buildDelete(table: String, where: String): String
+    }
+
+DatabaseService *-- ConnectionPool : использует
+DatabaseService *-- QueryBuilder : использует
+
+DatabaseService --> User : CRUD
+DatabaseService --> Device : CRUD
+DatabaseService --> Payment : CRUD
+DatabaseService --> Subscription : CRUD
+DatabaseService --> SensorData : CRUD
+
+@enduml

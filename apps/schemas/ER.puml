@@ -1,0 +1,114 @@
+@startuml ER-диаграмма
+
+entity "DeviceType" as DeviceType {
+  primary_key(type_id) : integer <<generated>>
+  --
+  *name : varchar(100)
+  description : text
+  ..
+  <i>Типы устройств</i>
+}
+
+entity "SensorType" as SensorType {
+  primary_key(type_id) : integer <<generated>>
+  --
+  *name : varchar(100)
+  description : text
+  ..
+  <i>Типы датчиков</i>
+}
+
+entity "UnitType" as UnitType {
+  primary_key(unit_type_id) : integer <<generated>>
+  --
+  *name : varchar(100)
+  description : text
+  ..
+  <i>Единицы измерения</i>
+}
+
+entity "user" as user {
+  primary_key(user_id) : integer <<generated>>
+  --
+  *username : varchar(50)
+  *email : varchar(100)
+  *isAdmin : boolean
+  password_hash : varchar(255)
+  created_at : timestamp
+  ..
+  <i>Пользователи системы</i>
+}
+
+entity "house" as house {
+  primary_key(house_id) : integer <<generated>>
+  --
+  *housename : varchar(50)
+  *address : text
+  created_at : timestamp
+  ..
+  <i>Дома пользователей</i>
+}
+
+entity "user_house" as user_house {
+  primary_key(user_house_id) : integer <<generated>>
+  --
+  foreign_key(user_id) : integer <<FK>>
+  foreign_key(house_id) : integer <<FK>>
+  *role : varchar(50)
+  joined_at : timestamp
+  ..
+  <i>Связь пользователей с домами (роли доступа)</i>
+}
+
+entity "device" as device {
+  primary_key(device_id) : integer <<generated>>
+  --
+  foreign_key(type_id) : integer <<FK>>
+  foreign_key(house_id) : integer <<FK>>
+  name : varchar(100)
+  state : integer
+  serial_number : varchar(50)
+  ..
+  <i>Устройства в доме</i>
+}
+
+entity "sensor" as sensor {
+  primary_key(sensor_id) : integer <<generated>>
+  --
+  foreign_key(house_id) : integer <<FK>>
+  foreign_key(type_id) : integer <<FK>>
+  *name : varchar(50)
+  *location : varchar(100)
+  last_value : float
+  status : varchar(20)
+  *created_at : timestamp
+  updated_at : timestamp
+  sensorAPIConnestionAdress : json
+  ..
+  <i>Датчики</i>
+}
+
+entity "sensorTelemetry" as sensorTelemetry {
+  primary_key(telemetry_id) : integer <<generated>>
+  --
+  foreign_key(sensor_id) : integer <<FK>>
+  foreign_key(unit_type_id) : int <<FK>>
+  value : float
+  measured_at : timestamp
+  created_at : timestamp
+  ..
+  <i>Телеметрия датчиков</i>
+}
+
+user ||--o{ user_house : "имеет доступ"
+user_house }o--|| house : "относится к"
+
+house ||--o{ device : "содержит"
+device ||--o{ sensor : "содержит"
+sensor ||--o{ sensorTelemetry : "публикует"
+
+device }o--|| DeviceType : "имеет"
+sensor }o--|| SensorType : "имеет"
+sensorTelemetry }o--|| UnitType : "имеет"
+
+@enduml

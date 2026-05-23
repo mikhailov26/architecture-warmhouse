@@ -1,0 +1,35 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+Container_Boundary(warmhouse, "WarmHouse система") {
+
+    Container(reg_service, "Сервис Регистрации пользователя", "Container", "")
+    Container(payment_service, "Сервис обработки платежей", "Container", "")
+    Container(device_service, "Сервис управления устройствами", "Container", "")
+
+    Container_Boundary(db_service_boundary, "Сервис для работы с БД") {
+        Component(query_handler, "Обработчик запросов", "Component", "Принимает и валидирует запросы от сервисов")
+        Component(transaction_manager, "Менеджер транзакций", "Component", "Управляет атомарностью операций с БД")
+        Component(query_builder, "Построитель запросов", "Component", "Формирует SQL-запросы")
+        Component(cache_manager, "Менеджер кэша", "Component", "Кэширует часто запрашиваемые данные")
+        Component(db_connector, "Коннектор БД", "Component", "Отвечает за подключение и работу с PostgreSQL")
+    }
+
+    ContainerDb(db, "База данных", "PostgreSQL", "Хранит данные приложения")
+}
+
+Rel(reg_service, query_handler, "Запрос на сохранение пользователя", "HTTP")
+Rel(payment_service, query_handler, "Запрос на сохранение платежа", "HTTP")
+Rel(device_service, query_handler, "Запрос на чтение/запись устройств", "HTTP")
+
+Rel(query_handler, transaction_manager, "Передача запроса с валидацией")
+Rel(transaction_manager, query_builder, "Запрос на построение SQL")
+Rel(query_builder, db_connector, "Передача готового SQL-запроса")
+Rel(db_connector, db, "Выполнение запроса", "CRUD")
+Rel(db, db_connector, "Возврат результата")
+
+Rel(cache_manager, query_builder, "Проверка наличия данных в кэше")
+Rel(cache_manager, query_builder, "Кэширование результата")
+BiRel(db_connector, db, "Запрос/Ответ", "CRUD")
+
+@enduml

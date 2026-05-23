@@ -1,0 +1,32 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+Person(user, "Клиент компании", "Пользователь")
+System(WarmHouseSystem, "WarmHouse система")
+
+Container_Boundary(WarmHouseSystem, "WarmHouse система") {
+  Container(user_service, "Пользовательский сервис", "Java")
+  Container(reg_service, "Сервис Регистрации пользователя", "Java")
+  Container(crud, "Сервис для работы с бд", "Java")
+  Container(pay_service, "Сервис обработки платежей", "Java")
+  Container(sens_service, "Сервис управления устройствами", "Java")
+  ContainerDb(db, "База данных", "PostgreSQL", "Хранит данные приложения")
+}
+
+System_Ext(api_modules, "API управляемых модулей")
+
+Rel(user, user_service, "Смотрит через приложение показатели датчиков. Настраивает поведение", "HTTPS")
+BiRel(user_service, reg_service, "HTTP/GRPC")
+BiRel(user_service, crud, "HTTP/GRPC")
+BiRel(reg_service, crud, "HTTP/GRPC")
+Rel(crud, db, "TCP")
+Rel(db, crud, "TCP")
+
+Rel(user_service, pay_service, "HTTP/GRPC")
+Rel(pay_service, crud, "HTTP/GRPC")
+
+Rel(user_service, sens_service, "HTTP/GRPC")
+BiRel(sens_service, crud, "HTTP/GRPC")
+BiRel(sens_service, api_modules, "Запрашивает/отправляет данные", "HTTPS")
+
+@enduml
